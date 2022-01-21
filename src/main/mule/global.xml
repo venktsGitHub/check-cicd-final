@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd">
+	<http:listener-config name="HTTP_Listener_config1" doc:name="HTTP Listener config" doc:id="acfcfd57-3140-4785-a401-f8f9f535478e" >
+		<http:listener-connection host="0.0.0.0" port="${http.port}" />
+	</http:listener-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="4ca7d630-6258-4a44-95d6-e2ea8333d8d3" file="config.yaml" />
+	<db:config name="Database_Config1" doc:name="Database Config" doc:id="3a60c400-0984-4fd0-8d5f-0c088c24841e" >
+		<db:my-sql-connection host="${secure::db.host}" port="${secure::db.port}" user="${secure::db.user}" password="${secure::db.pass}" database="theatersAvail" />
+	</db:config>
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="0c228124-b679-47bd-a22c-4892e778d608" file="config.yaml" key="bookmyshow" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<validation:config name="LessThanOrEqualtoFive" doc:name="Validation Config" doc:id="680dcb4c-acca-4b8f-a084-b29445764d63" i18n="#[sizeOf(payload) &lt;=5]" />
+	<wsc:config name="Web_Service_Consumer_Config1" doc:name="Web Service Consumer Config" doc:id="91c0f69a-0a33-4815-9ab8-814e5d2a8e12" >
+		<wsc:connection wsdlLocation="http://order-mang-sysapp.us-e2.cloudhub.io/orderManagement/orderManagementPort?wsdl" service="orderManagement" port="orderManagementPort" address="http://order-mang-sysapp.us-e2.cloudhub.io/orderManagement/orderManagementPort">
+			<wsc:web-service-security actor="http://schemas.xmlsoap.org/soap/actor/next" />
+		</wsc:connection>
+	</wsc:config>
+	<configuration doc:name="Configuration" doc:id="3dadd365-96ad-43fb-916a-64e4cb2b5b12" defaultErrorHandler-ref="globalError_Handler" />
+	<error-handler name="globalError_Handler" doc:id="b90bde9e-7f46-4529-95c5-d72a157068c1" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="ebfd4fc4-91a1-4013-a7fa-d26519b3d634" type="ANY"/>
+	</error-handler>
+</mule>

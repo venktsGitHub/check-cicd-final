@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_132e2036_9f7d_4445_a343_ebae945301ad_Output_Variables_theaterName = Any
+

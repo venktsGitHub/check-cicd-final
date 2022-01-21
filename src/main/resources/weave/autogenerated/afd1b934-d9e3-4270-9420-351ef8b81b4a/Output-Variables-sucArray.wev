@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_afd1b934_d9e3_4270_9420_351ef8b81b4a_Output_Variables_sucArray = Array<Nothing>
+

@@ -1,0 +1,18 @@
+{
+"Status": "Booked",
+"s_no": 1,
+"Order-ID": "ODR003",
+"ShowDate": "22-12-22",
+"TheaterName": "PVR",
+"MovieName": "RRR",
+"ShowTime": "FirstShow-11:30AM",
+"noOfTickets":3,
+"seatNums": "a1,a2,a3",
+"Amount": 300,
+"Coupen/OfferApplied?": "true",
+"DiscountedPrice": 240,
+"emailID":"dummy@gmail.oom",
+"Theater-Address": "visakhapatnam",
+"TimeAndDateOfBooking": "'2022-01-19T13:02:08.12+05:30'"
+
+}

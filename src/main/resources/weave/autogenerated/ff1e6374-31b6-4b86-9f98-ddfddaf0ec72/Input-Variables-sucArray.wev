@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_ff1e6374_31b6_4b86_9f98_ddfddaf0ec72_Input_Variables_sucArray = Array<Nothing>
+

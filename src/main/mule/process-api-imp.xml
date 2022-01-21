@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd">
+	<db:config name="bookMyShow" doc:name="Database Config" doc:id="25afdeaf-4752-484f-abcc-f3167ff67f48" >
+		<db:my-sql-connection host="${secure::db.host}" port="${secure::db.port}" user="${secure::db.user}" password="${secure::db.pass}" database="bookMyShow" />
+	</db:config>
+	<flow name="GET:Availability" doc:id="5004ff59-9c30-4ac6-a507-8dbc189fb4bf" >
+		<ee:transform doc:name="To Generate Theater table name" doc:id="51f396ef-674f-4457-bba5-75c888b180cd" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="show" ><![CDATA[payload.TheaterID ++"_"++ payload.ShowTime]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Verifying if Seats attribute is Null " doc:id="826cfe1f-aa5a-495c-ab18-ac70273eda31" >
+			<when expression="#[attributes.queryParams.seats != null]">
+				<set-variable value="#[attributes.queryParams.seats]" doc:name="vars.query = seats" doc:id="34b9d47d-1292-4e7e-aa79-84e259f74814" variableName="query" />
+				<ee:transform doc:name="splitting seats by Comma and Declaring an EmptyArray" doc:id="49a8524b-864f-4d01-bb0f-8621af425e13">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+var a= "c1,b2,a3"
+---
+vars.query splitBy ','
+]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="sucArray"><![CDATA[[]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+				<choice doc:name="Checking no Of tickets" doc:id="7c3ce54f-9314-461d-8515-b9a1d64056bc">
+					<when expression="#[sizeOf(payload) &lt;= 5]">
+						<foreach doc:name="For Each" doc:id="d20a56f6-db17-4e1c-9182-69e06d3f4d7d">
+							<flow-ref doc:name="check Availability" doc:id="7164f7d3-c07b-4a58-b789-3808c1b5f94d" name="check_availabitlity-by-seatnum-Sub_Flow" />
+		</foreach>
+						<ee:transform doc:name="User friendly" doc:id="caac194e-0f4f-42f7-ad0b-e391509ab78e">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+fun calStatus(str: String) = if(str contains "Booked") "Not-Available"
+							else if(str contains "notValid") "Seat Number Does not Exist"
+							else "Available"	
+---
+{
+StatusOfSeat:
+payload map{
+	
+	(upper($)): calStatus(vars.sucArray[$$])
+}
+
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+					</when>
+					<otherwise >
+						<set-payload value='#["User can book maximum of 5 tickets in one go "]' doc:name="Setting Warning Message" doc:id="7cbe5cfa-d832-49b7-b0cb-c81181f974c9" />
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<db:select doc:name="Selecting Theaters Availability Chart" doc:id="1a23837d-0dce-47a1-9586-5a25ea79bb38" config-ref="Database_Config1">
+			<db:sql><![CDATA[#["select * from $(vars.show)"]]]></db:sql>
+		</db:select>
+				<ee:transform doc:name="Transforming into User Frendly Data" doc:id="a0d4b7c6-534d-47b8-a390-1cce983be0d9">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map(i,k)->{
+    (i.ID): i -"ID"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="check_availabitlity-by-seatnum-Sub_Flow" doc:id="ff1e6374-31b6-4b86-9f98-ddfddaf0ec72" >
+		<flow-ref doc:name="spliting SeatNum" doc:id="942e5707-45f0-4773-a949-f4c259a403e5" name="splittingSeatnum" />
+		<try doc:name="Try" doc:id="072fcca4-6a27-4829-a6c5-01f5760cea29" >
+			<db:select doc:name="To check Availability" doc:id="62113d04-3ad0-46d4-a96f-2b12412f23af" config-ref="Database_Config1" >
+				<db:sql ><![CDATA[#["SELECT $(vars.col) FROM $(vars.show) WHERE ID = $(vars.row)"]]]></db:sql>
+			</db:select>
+			<set-variable value="#[payload[0][0]]" doc:name="copying Status to avail" doc:id="aff0e7ca-bd4f-42e8-b6b8-0adf9100fbbc" variableName="avail" />
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="Error Continue" doc:id="8a9e85d6-f30e-46a3-b9bb-2663ba89c2ff" type="DB:BAD_SQL_SYNTAX" >
+					<set-variable value='"notValid"' doc:name="Setting Not Valid" doc:id="62d777ee-112d-44af-8078-f4e265e5204c" variableName="avail" />
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Storing Complete Seat nums Statuses" doc:id="43d1bac3-ee67-4335-a93b-e6d530ddaf27" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="sucArray" ><![CDATA[vars.sucArray + vars.avail]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="splittingSeatnum" doc:id="86439ea5-a7cb-4629-834b-7d1e0a8f71aa" >
+		<ee:transform doc:name="Create col and Row vars" doc:id="4b1bdbea-d1f1-4298-a1b9-6fc6aaa4650d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="row" ><![CDATA['\''++ payload[0] ++'\'']]></ee:set-variable>
+				<ee:set-variable variableName="col" ><![CDATA['`'++ payload[1 to sizeOf(payload)-1]++'`']]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+	<flow name="book-ticket" doc:id="9f5cda68-45f7-43e9-ac17-3686a03728df" >
+		<set-variable value="#[payload]" doc:name="Storing Input Data to inputData variable" doc:id="148d2107-ad25-4848-9454-5f4bf6d5fd0e" variableName="inputData"/>
+		<ee:transform doc:name="To Generate Theater table name" doc:id="1893c49f-6292-4642-aefd-2b4c77098884" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="show" ><![CDATA[payload.TheaterID ++"_"++ payload.ShowTime]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<set-variable value="#[attributes.queryParams.seats]" doc:name="vars.query = seats" doc:id="e2244a00-f1a1-49ad-9aee-a7d61002a283" variableName="query"/>
+		<ee:transform doc:name="splitting seats by Comma and Declaring an EmptyArray" doc:id="c0f2eeb3-b3d0-4f12-9914-ee4344207770" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+var a= "c1,b2,a3"
+---
+vars.query splitBy ','
+]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="sucArray" ><![CDATA[[]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Checking no Of tickets" doc:id="0bd64b37-6bb3-492f-aa90-08a21b254779" >
+			<when expression="#[sizeOf(payload) &lt;= 5]" >
+				<foreach doc:name="For Each" doc:id="a8f1e69e-7c0b-4a27-a192-c04f3171fd51" >
+					<flow-ref doc:name="to check Availability" doc:id="b6ba69c6-4c62-43eb-ac59-61c365ca99fd" name="check_availabitlity-by-seatnum-Sub_Flow" />
+				</foreach>
+			</when>
+			<otherwise >
+				<set-payload value='#["User can book maximum of 5 tickets in one go "]' doc:name="Setting Warning Message" doc:id="53eed605-0fee-4258-a08d-6fb07a4ad7c1" />
+			</otherwise>
+		</choice>
+		<flow-ref doc:name="Flow Reference" doc:id="cd59d4a4-48f1-4a78-8109-85741f7f543d" name="book-ticket-flow-final"/>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="fd01b003-02e6-4a0b-b17f-1c4702927b4a" type="WSC:BAD_REQUEST, WSC:BAD_RESPONSE, WSC:CANNOT_DISPATCH, WSC:CONNECTIVITY, WSC:ENCODING, WSC:INVALID_WSDL, WSC:RETRY_EXHAUSTED, WSC:SOAP_FAULT, WSC:TIMEOUT">
+				<set-payload value='#["External Connection is Not Responding"]' doc:name="Set Payload" doc:id="cf1f7a03-3dd6-40b9-afb0-2605edb50eca" />
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<flow name="book-ticket-flow-final" doc:id="45bba370-c595-427c-8be4-cc1b2c729865" >
+		<choice doc:name="to validate Status of SeatNum" doc:id="3eaa9fad-6245-4021-9d5c-aa545eb77a66" >
+			<when expression='#[not ((vars.sucArray contains "Booked") or (vars.sucArray contains "notValid"))]'>
+				<foreach doc:name="For Each" doc:id="2ac27250-30dd-4ce2-a1be-91f65b51ac8f" >
+					<flow-ref doc:name="To update as Booked" doc:id="6d00834b-9d95-4a13-9356-ec731d872c10" name="to-update-as-booked"/>
+				</foreach>
+				<flow-ref doc:name="Toget all Other details Required" doc:id="1cc0cdcb-dc6f-433e-979d-2a8457ca16ca" name="get-all-names"/>
+				<ee:transform doc:name="creating soap input payload" doc:id="fa90ce7e-4063-4db5-a396-46b2417172f0" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://mulesoft.org/orderManagement-service
+fun calshow(str: String) = if ( str contains "FirstShow" ) "FirstShow-10:30AM"
+							else
+							"SecondShow-3:30PM"
+---
+{
+	ns0#BookTicket: {
+		date: vars.inputData.ShowDate default " ",
+		theaterName: vars.theaterName,
+		movieName: vars.movieName.movie_name[0],
+		show: calshow(vars.inputData.ShowTime default ""),
+		noOfSeats: sizeOf(payload),
+		SeatNum: payload joinBy ",",
+		price: sizeOf(payload) as Number * 100,
+		emailID: vars.inputData.emailID default " ",
+		address: vars.address,
+		BookingdateTime: now()
+	}
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<wsc:consume doc:name="Creating Order into Orderdata table" doc:id="f30ecc65-147b-46b5-a109-3434096b151b" config-ref="Web_Service_Consumer_Config1" operation="BookTicket" >
+					<reconnect />
+				</wsc:consume>
+				<ee:transform doc:name="Final-Ticket" doc:id="1c2850be-b4fa-4809-a8fb-735e7b7c786b">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+ns ns0 http://mulesoft.org/orderManagement-service
+---
+{
+	Status: "Booked",
+	s_no: payload.body.root.s_no default 0,
+	"Order-ID": payload.body.root.order_id default "",
+	ShowDate: payload.body.root.show_date default "",
+	TheaterName: payload.body.root.theater_name default "",
+	MovieName: payload.body.root.movie_name default "",
+	ShowTime: payload.body.root.show_time default "",
+	noOfTickets: payload.body.root.seats default 0,
+	seatNums: payload.body.root.seat_nums default "",
+	Amount: payload.body.root.total_fare default 0,
+	"Coupen/OfferApplied?": payload.body.root.coupen_applied default "",
+	DiscountedPrice: payload.body.root.price_after_coupen default 0,
+	emailID: payload.body.root.mail_id default "",
+	"Theater-Address": payload.body.root.address default "",
+	TimeAndDateOfBooking: payload.body.root.time_of_booking default ""
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="15094231-d18d-4f21-9f54-9c90122c5807" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+fun avail(str : String) = if(str contains 'Booked') "Not-Available(Already Booked)"
+                            else if(str contains 'notValid') "Entered Seat Number Does not Exist"
+                            else "Available"
+---
+{
+	status: "Not Booked",
+    Seat_Nums : payload map{
+    (upper($)): avail(vars.sucArray[($$)])
+},
+	time: now()
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="to-update-as-booked" doc:id="afd1b934-d9e3-4270-9420-351ef8b81b4a" >
+		<flow-ref doc:name="to split seat num" doc:id="0a354ba0-ff93-4f76-acfc-b92e53112ef1" name="splittingSeatnum" />
+		<db:update doc:name="Updating as Booked" doc:id="aac0c388-db5d-42e0-99b2-09f46a307e0b" config-ref="Database_Config1" >
+			<db:sql ><![CDATA[#["update $(vars.show) set $(vars.col) = 'Booked' WHERE ID = $(vars.row)"]
+]]></db:sql>
+		</db:update>
+	</flow>
+	<flow name="get-all-names" doc:id="132e2036-9f7d-4445-a343-ebae945301ad" >
+		<flow-ref doc:name="theaterName" doc:id="20735bf5-d812-455b-96db-a4225b6bf958" target="theaterName" name="get-theater-name"/>
+		<flow-ref doc:name="movieName" doc:id="f69ccda1-b0cb-444a-b3b8-44ae95a3dc78" target="movieName" name="get-movie-name"/>
+		<flow-ref doc:name="address" doc:id="714f4e18-2430-4bf5-a74c-b7664cedf234" name="get-location-name" target="address"/>
+	</flow>
+	<flow name="get-theater-name" doc:id="3b2eed99-eada-4670-b58e-bdd441c0fc16" >
+		<db:select doc:name="Select" doc:id="c76bf862-d0ab-4d71-b757-036267434263" target="th_name" config-ref="bookMyShow">
+			<db:sql ><![CDATA[select theater_name, theater_id from theatersData
+where theater_id = :th_id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"th_id": vars.inputData.TheaterID
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="24214269-4482-4717-9038-8416c608207d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.th_name.theater_name[0]]]></ee:set-payload>
+			</ee:message>
+			<ee:variables />
+		</ee:transform>
+	</flow>
+	<flow name="get-movie-name" doc:id="57959c41-1d88-4edc-b619-4e55542c034d" >
+		<db:select doc:name="Select" doc:id="bdaffc48-ccae-47f1-9958-7f8b0cf833d2" config-ref="bookMyShow" target="mov_name">
+			<db:sql ><![CDATA[select movie_name,location_id from moviesData
+where theater_id = :th_id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"th_id": vars.inputData.TheaterID
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="5c51f5a6-7c7f-494b-b0c8-65af90a99d9c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[vars.mov_name]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+			</ee:variables>
+		</ee:transform>
+	</flow>
+	<flow name="get-location-name" doc:id="3df0ef2d-7354-4e77-8728-2fbad71e2132" >
+		<db:select doc:name="Select" doc:id="4c108623-4e69-4f07-9b45-0db75de0a472" target="loc_name" config-ref="bookMyShow">
+			<db:sql ><![CDATA[select location_name from locationsData where location_id = :loc_id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	loc_id: vars.movieName.location_id[0] as String
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="91ba9939-1595-44e5-b682-cf3a98adbad8" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.loc_name.location_name[0]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_57959c41_1d88_4edc_b619_4e55542c034d_Output_Variables_movieName = Any
+

@@ -1,0 +1,9 @@
+%dw 2.0
+
+type auto_3b2eed99_eada_4670_b58e_bdd441c0fc16_Output_Variables_th_name = Array<{ _?: java_lang_Object }>
+type java_lang_Object = {|  |} {"typeAlias": "Object",
+"class": "java.lang.Object",
+"typeId": "java.lang.Object"}
+
+
+

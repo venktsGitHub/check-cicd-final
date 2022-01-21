@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_86439ea5_a7cb_4629_834b_7d1e0a8f71aa_Output_Variables_col = Any
+
